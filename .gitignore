@@ -1,0 +1,40 @@
+# Zephyr / west build outputs
+build/
+build-*/
+twister-out*/
+.west/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# Zephyr generated artifacts
+zephyr/
+modules/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.uf2
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Editor and IDE local state
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+AGENTS.md
