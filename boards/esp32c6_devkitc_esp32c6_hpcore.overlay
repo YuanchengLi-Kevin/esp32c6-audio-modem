@@ -1,0 +1,46 @@
+/*
+ * Copyright (c) 2026 Yuancheng Li
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * ESP32-C6 UART audio output for MSPM0 UART1 RX.
+ *
+ * Recommended wiring:
+ *   ESP32-C6 GPIO4 / UART1 TX -> MSPM0 PA18 / UART1 RX
+ *   ESP32-C6 GPIO5 / UART1 RX <- MSPM0 PA17 / UART1 TX, optional for later control
+ *   ESP32-C6 GND              -> MSPM0 GND
+ */
+
+#include <zephyr/dt-bindings/pinctrl/esp32c6-pinctrl.h>
+
+/ {
+	chosen {
+		zephyr,console = &usb_serial;
+		zephyr,shell-uart = &usb_serial;
+		zephyr,audio-uart = &uart1;
+	};
+};
+
+&usb_serial {
+	status = "okay";
+};
+
+&pinctrl {
+	uart1_audio_default: uart1_audio_default {
+		group1 {
+			pinmux = <UART1_TX_GPIO4>;
+			output-high;
+		};
+
+		group2 {
+			pinmux = <UART1_RX_GPIO5>;
+			bias-pull-up;
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <2000000>;
+	pinctrl-0 = <&uart1_audio_default>;
+	pinctrl-names = "default";
+};
