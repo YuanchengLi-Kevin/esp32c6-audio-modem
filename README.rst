@@ -79,9 +79,6 @@ DevKitC header.
 Building and Running
 ********************
 
-Do not build or flash from automation in this repository unless explicitly
-requested. Manual commands:
-
 .. code-block:: console
 
    west blobs fetch hal_espressif

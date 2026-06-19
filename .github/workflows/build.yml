@@ -1,0 +1,57 @@
+# Copyright (c) 2026 Yuancheng Li
+# SPDX-License-Identifier: Apache-2.0
+
+name: Zephyr Firmware CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Application Code
+        uses: actions/checkout@v4
+        with:
+          # Checks out your repository into a folder named "app"
+          path: app
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: pip
+          cache-dependency-path: app/tests/python/requirements.txt
+
+      - name: Setup Zephyr environment
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          # Points the action to your code
+          app-path: app
+          # ESP32-C6 uses the RISC-V Zephyr SDK toolchain
+          toolchains: riscv64-zephyr-elf
+
+      - name: Run Python Tests
+        working-directory: app
+        run: |
+          python -m pip install -r tests/python/requirements.txt
+          python -m pytest tests/python -m "not hardware"
+
+      - name: Build Firmware
+        run: |
+          # The action automatically configures the environment, so we can just build
+          west build app -b esp32c6_devkitc/esp32c6/hpcore -p always
+
+      - name: Upload Firmware Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32c6-audio-modem-firmware
+          path: |
+            build/zephyr/zephyr.bin
+            build/zephyr/zephyr.elf
+            build/zephyr/zephyr.map
+          if-no-files-found: error

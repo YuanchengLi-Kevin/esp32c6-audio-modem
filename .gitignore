@@ -1,8 +1,16 @@
+# Copyright (c) 2026 Yuancheng Li
+# SPDX-License-Identifier: Apache-2.0
+
 # Zephyr / west build outputs
 build/
 build-*/
 twister-out*/
 .west/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
 # CMake generated files
 CMakeCache.txt
