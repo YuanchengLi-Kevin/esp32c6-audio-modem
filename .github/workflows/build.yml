@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  python-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +27,27 @@ jobs:
           cache: pip
           cache-dependency-path: app/tests/python/requirements.txt
 
+      - name: Run Python Tests
+        working-directory: app
+        run: |
+          python -m pip install -r tests/python/requirements.txt
+          python -m pytest tests/python -m "not hardware"
+
+  firmware-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Application Code
+        uses: actions/checkout@v4
+        with:
+          # Checks out your repository into a folder named "app"
+          path: app
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
       - name: Setup Zephyr environment
         uses: zephyrproject-rtos/action-zephyr-setup@v1
         with:
@@ -34,12 +55,6 @@ jobs:
           app-path: app
           # ESP32-C6 uses the RISC-V Zephyr SDK toolchain
           toolchains: riscv64-zephyr-elf
-
-      - name: Run Python Tests
-        working-directory: app
-        run: |
-          python -m pip install -r tests/python/requirements.txt
-          python -m pytest tests/python -m "not hardware"
 
       - name: Build Firmware
         run: |
