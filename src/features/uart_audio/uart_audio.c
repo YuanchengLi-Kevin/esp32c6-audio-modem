@@ -6,47 +6,81 @@
 
 #include "uart_audio.h"
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <zephyr/drivers/uart.h>
-#include <zephyr/sys/__assert.h>
+#include <zephyr/kernel.h>
+#include <zephyr/sys/util.h>
 
 #define FRAME_SYNC0 0xA5U
 #define FRAME_SYNC1 0x5AU
 
-static void uart_audio_put_u8(const struct device *uart, uint8_t value)
+static void uart_audio_callback(const struct device *uart,
+				struct uart_event *event,
+				void *user_data)
 {
-	uart_poll_out(uart, value);
+	struct uart_audio_stream *stream = user_data;
+
+	ARG_UNUSED(uart);
+
+	if ((event->type == UART_TX_DONE) || (event->type == UART_TX_ABORTED)) {
+		k_sem_give(&stream->tx_available);
+	}
 }
 
-static void uart_audio_put_le16(const struct device *uart, uint16_t value)
+int uart_audio_stream_init(struct uart_audio_stream *stream, const struct device *uart)
 {
-	uart_audio_put_u8(uart, (uint8_t)(value & 0xffU));
-	uart_audio_put_u8(uart, (uint8_t)(value >> 8));
-}
+	if ((stream == NULL) || (uart == NULL)) {
+		return -EINVAL;
+	}
 
-void uart_audio_stream_init(struct uart_audio_stream *stream, const struct device *uart)
-{
 	stream->uart = uart;
 	stream->sequence = 0U;
+	k_sem_init(&stream->tx_available, 1U, 1U);
+
+	return uart_callback_set(uart, uart_audio_callback, stream);
 }
 
-void uart_audio_send_frame(struct uart_audio_stream *stream,
-			   const uint16_t *samples,
-			   size_t sample_count)
+int uart_audio_send_frame(struct uart_audio_stream *stream,
+			  const uint16_t *samples,
+			  size_t sample_count)
 {
-	__ASSERT_NO_MSG(sample_count > 0U);
-	__ASSERT_NO_MSG(sample_count <= UART_AUDIO_MAX_SAMPLES);
+	int ret;
+	size_t frame_size;
 
-	uart_audio_put_u8(stream->uart, FRAME_SYNC0);
-	uart_audio_put_u8(stream->uart, FRAME_SYNC1);
-	uart_audio_put_u8(stream->uart, stream->sequence);
-	uart_audio_put_u8(stream->uart, (uint8_t)sample_count);
+	if ((stream == NULL) || (stream->uart == NULL) || (samples == NULL) ||
+	    (sample_count == 0U) || (sample_count > UART_AUDIO_MAX_SAMPLES)) {
+		return -EINVAL;
+	}
+
+	ret = k_sem_take(&stream->tx_available, K_FOREVER);
+	if (ret != 0) {
+		return ret;
+	}
+
+	stream->frame[0] = FRAME_SYNC0;
+	stream->frame[1] = FRAME_SYNC1;
+	stream->frame[2] = stream->sequence;
+	stream->frame[3] = (uint8_t)sample_count;
 
 	for (size_t i = 0; i < sample_count; i++) {
-		uart_audio_put_le16(stream->uart, samples[i]);
+		uint16_t sample = MIN(samples[i], 4095U);
+
+		stream->frame[UART_AUDIO_FRAME_HEADER_SIZE + (i * 2U)] =
+			(uint8_t)(sample & 0xffU);
+		stream->frame[UART_AUDIO_FRAME_HEADER_SIZE + (i * 2U) + 1U] =
+			(uint8_t)(sample >> 8);
+	}
+
+	frame_size = UART_AUDIO_FRAME_HEADER_SIZE + (sample_count * sizeof(uint16_t));
+	ret = uart_tx(stream->uart, stream->frame, frame_size, SYS_FOREVER_US);
+	if (ret != 0) {
+		k_sem_give(&stream->tx_available);
+		return ret;
 	}
 
 	stream->sequence++;
+	return 0;
 }

@@ -16,7 +16,7 @@
 #define AUDIO_UART_NODE DT_CHOSEN(zephyr_audio_uart)
 
 #if !DT_NODE_HAS_STATUS(AUDIO_UART_NODE, okay)
-#error "No enabled zephyr,audio-uart chosen node. Check boards/esp32c6_devkitc.overlay."
+#error "No enabled zephyr,audio-uart chosen node. Check the board devicetree overlay."
 #endif
 
 #define SAMPLE_RATE_HZ 42000U
@@ -30,6 +30,7 @@ int main(void)
 	uint16_t samples[FRAME_SAMPLES];
 	uint64_t stream_start_us;
 	uint64_t sample_cursor = 0U;
+	int ret;
 
 	if (!device_is_ready(audio_uart))
 	{
@@ -38,7 +39,12 @@ int main(void)
 	}
 
 	sine_source_init(&source, SAMPLE_RATE_HZ);
-	uart_audio_stream_init(&stream, audio_uart);
+	ret = uart_audio_stream_init(&stream, audio_uart);
+	if (ret != 0)
+	{
+		printk("Audio UART initialization failed: %d\n", ret);
+		return 0;
+	}
 
 	printk("ESP32-C6 UART audio streamer: %u Hz, %u samples/frame, 2000000 baud\n",
 		   SAMPLE_RATE_HZ, FRAME_SAMPLES);
@@ -48,7 +54,11 @@ int main(void)
 	while (true)
 	{
 		source.fill(&source, samples, FRAME_SAMPLES);
-		uart_audio_send_frame(&stream, samples, FRAME_SAMPLES);
+		ret = uart_audio_send_frame(&stream, samples, FRAME_SAMPLES);
+		if (ret != 0)
+		{
+			printk("Audio UART transmission failed: %d\n", ret);
+		}
 
 		sample_cursor += FRAME_SAMPLES;
 

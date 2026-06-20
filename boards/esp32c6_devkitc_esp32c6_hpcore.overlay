@@ -5,7 +5,7 @@
  * ESP32-C6 UART audio output for MSPM0 UART1 RX.
  *
  * Recommended wiring:
- *   ESP32-C6 GPIO4 / UART1 TX -> MSPM0 PA18 / UART1 RX
+ *   ESP32-C6 GPIO4 / UART1 TX -> MSPM0 PA9 / UART1 RX
  *   ESP32-C6 GPIO5 / UART1 RX <- MSPM0 PA17 / UART1 TX, optional for later control
  *   ESP32-C6 GND              -> MSPM0 GND
  */
@@ -40,7 +40,13 @@
 
 &uart1 {
 	status = "okay";
-	current-speed = <2000000>;
+	current-speed = <1000000>;
 	pinctrl-0 = <&uart1_audio_default>;
 	pinctrl-names = "default";
+	dmas = <&dma 0>, <&dma 1>;
+	dma-names = "rx", "tx";
+};
+
+&dma {
+	status = "okay";
 };
