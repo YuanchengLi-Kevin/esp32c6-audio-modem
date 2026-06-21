@@ -12,14 +12,13 @@ serial = pytest.importorskip("serial")
 SAMPLE_RATE_HZ = 42_000
 SAMPLE_MIDPOINT = 2048
 
-
 @pytest.fixture(scope="module")
 def frame_reader():
     port = os.getenv("AUDIO_UART_PORT")
     if not port:
         pytest.skip("set AUDIO_UART_PORT to run tests against hardware")
 
-    with serial.Serial(port, 2_000_000, timeout=2) as stream:
+    with serial.Serial(port, 1_000_000, timeout=2) as stream:
         stream.reset_input_buffer()
         yield AudioFrameReader(stream)
 
@@ -44,6 +43,9 @@ def test_hardware_sequence(frame_reader: AudioFrameReader) -> None:
 
 @pytest.mark.hardware
 def test_hardware_sine_wave(frame_reader: AudioFrameReader) -> None:
+    if os.getenv("AUDIO_SOURCE") != "sine":
+        pytest.skip("set AUDIO_SOURCE=sine when running sine-source firmware")
+
     samples: list[int] = []
     while len(samples) < SAMPLE_RATE_HZ:
         samples.extend(frame_reader.read_frame().samples)

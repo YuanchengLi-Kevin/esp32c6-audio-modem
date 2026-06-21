@@ -1,0 +1,54 @@
+# Copyright (c) 2026 Yuancheng Li
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "ESP32-C6 audio modem"
+
+source "Kconfig.zephyr"
+
+menu "Audio modem"
+
+choice AUDIO_MODEM_SOURCE
+	prompt "Audio source"
+	default AUDIO_MODEM_SOURCE_UDP
+
+config AUDIO_MODEM_SOURCE_UDP
+	bool "Wi-Fi UDP audio"
+
+config AUDIO_MODEM_SOURCE_SINE
+	bool "Local sine-wave test source"
+
+endchoice
+
+config AUDIO_MODEM_WIFI_SSID
+	string "Wi-Fi SSID"
+	default ""
+	depends on AUDIO_MODEM_SOURCE_UDP
+	help
+	  Station SSID. Keep site-specific values in an untracked wifi.conf file.
+
+config AUDIO_MODEM_WIFI_PSK
+	string "Wi-Fi pre-shared key"
+	default ""
+	depends on AUDIO_MODEM_SOURCE_UDP
+	help
+	  WPA/WPA2 pre-shared key. An empty value selects an open network.
+
+config AUDIO_MODEM_UDP_PORT
+	int "UDP audio listen port"
+	default 4242
+	range 1 65535
+	depends on AUDIO_MODEM_SOURCE_UDP
+
+config AUDIO_MODEM_JITTER_BUFFER_PACKETS
+	int "Jitter buffer capacity in packets"
+	default 8
+	range 3 16
+	depends on AUDIO_MODEM_SOURCE_UDP
+
+config AUDIO_MODEM_JITTER_BUFFER_START_PACKETS
+	int "Packets required before playback starts"
+	default 3
+	range 1 16
+	depends on AUDIO_MODEM_SOURCE_UDP
+
+endmenu

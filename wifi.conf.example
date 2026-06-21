@@ -1,0 +1,7 @@
+# Copyright (c) 2026 Yuancheng Li
+# SPDX-License-Identifier: Apache-2.0
+
+# Copy this file to wifi.conf. The copy is ignored by Git.
+CONFIG_AUDIO_MODEM_WIFI_SSID="your-network"
+CONFIG_AUDIO_MODEM_WIFI_PSK="your-password"
+CONFIG_AUDIO_MODEM_UDP_PORT=4242

@@ -4,22 +4,22 @@
 ESP32-C6 Audio Modem
 ####################
 
-Zephyr RTOS application for an ESP32-C6 used as a WiFi/audio coprocessor for a
+Zephyr RTOS application for an ESP32-C6 used as a Wi-Fi/audio coprocessor for a
 TI MSPM0G3507 LaunchPad.
 
 Overview
 ********
 
-The ESP32-C6 streams unsigned 12-bit PCM samples to the MSPM0 over UART. The
-initial firmware milestone generates a local sine wave so the MSP UART receiver
-and DAC path can be tested before WiFi audio is added.
+The ESP32-C6 receives signed 16-bit PCM audio over Wi-Fi/UDP, absorbs network
+jitter in a packet buffer, converts samples to unsigned 12-bit PCM, and streams
+them to the MSPM0 over UART.
 
 UART interfaces
 ***************
 
 The application uses two independent interfaces:
 
-* ``UART1`` carries only framed audio to the MSPM0 at 2,000,000 baud. Its TX
+* ``UART1`` carries only framed audio to the MSPM0 at 1,000,000 baud. Its TX
   signal is routed to ESP32-C6 GPIO4.
 * ``usb_serial`` is the Zephyr console used by ``printk()``. It appears as the
   ESP32-C6 native USB Serial/JTAG COM port and is not connected to the audio
@@ -49,7 +49,7 @@ UART audio configuration
 
 The dedicated audio UART uses:
 
-* 2,000,000 baud
+* 1,000,000 baud
 * 8 data bits
 * No parity
 * 1 stop bit
@@ -73,7 +73,7 @@ Normal frames always contain 128 samples and therefore appear as:
 
 The sequence byte increments for each accepted DMA transmission and wraps
 naturally from 255 to 0. A normal frame is 260 bytes and takes approximately
-1.30 ms to transmit at 2 Mbaud.
+2.60 ms to transmit at 1 Mbaud.
 
 Sample format:
 
@@ -83,9 +83,38 @@ Sample format:
 * Silence/midpoint: 2048
 * Maximum frame size: 128 samples
 
-The current test source continuously generates a 656 Hz sine wave at 42,000
-samples/second. It produces approximately 512..3584 around midpoint 2048. Each
-128-sample frame represents approximately 3.048 ms of audio.
+Each 128-sample UART frame represents approximately 3.048 ms of audio. The
+stream outputs midpoint samples while the jitter buffer is starting or empty.
+
+UDP audio protocol
+******************
+
+The ESP32-C6 listens on the configured IPv4 UDP port. Each datagram contains
+one independently validated audio packet:
+
+.. code-block:: text
+
+   bytes 0..3:  ASCII magic "AUD0"
+   byte 4:      protocol version, currently 1
+   byte 5:      flags, must be 0
+   bytes 6..7:  packet sequence, little-endian uint16_t
+   bytes 8..9:  sample count, little-endian uint16_t, must be 128
+   bytes 10+:   signed 16-bit PCM samples, little-endian
+
+The datagram length must be exactly 266 bytes. Sequence numbers wrap from 65535
+to 0. Duplicate, stale, malformed, and packets outside the jitter-buffer window
+are discarded. Fixed 128-sample packets ensure that replacing a missing packet
+with silence preserves the stream timeline.
+
+Signed PCM is converted to the MSP format with:
+
+.. code-block:: c
+
+   sample12 = (pcm16 + 32768) >> 4;
+
+The jitter buffer accepts limited packet reordering. It begins playback after
+``CONFIG_AUDIO_MODEM_JITTER_BUFFER_START_PACKETS`` packets and substitutes
+midpoint value ``2048`` for unavailable audio.
 
 DMA transmission
 ================
@@ -110,14 +139,53 @@ Project layout
        audio_source/
          audio_source.h
          sine_source.c
+       jitter_buffer/
+         jitter_buffer.h
+         jitter_buffer.c
+       udp_audio/
+         udp_audio.h
+         udp_audio.c
        uart_audio/
          uart_audio.h
          uart_audio.c
+       wifi_station/
+         wifi_station.h
+         wifi_station.c
 
-``src/features/audio_source`` owns sample generation. Replace this interface
-with a WiFi-backed source later without changing the UART framing code.
+``wifi_station`` owns station association and connection events. ``udp_audio``
+owns the socket, packet validation, and PCM conversion. ``jitter_buffer`` owns
+the synchronized producer/consumer boundary. ``uart_audio`` owns framing and
+DMA transmission.
 
-``src/features/uart_audio`` owns framing and DMA transmission.
+Audio source selection
+**********************
+
+Wi-Fi UDP audio is the default source. The local 656 Hz sine-wave source is
+retained for UART, MSPM0 receiver, and DAC-path testing. Select it with the
+provided configuration fragment:
+
+.. code-block:: console
+
+   west build -b esp32c6_devkitc/esp32c6/hpcore . -- \
+     -DEXTRA_CONF_FILE=sine.conf
+
+``CONFIG_AUDIO_MODEM_SOURCE_UDP`` and ``CONFIG_AUDIO_MODEM_SOURCE_SINE`` form a
+Kconfig choice, so only the selected source modules are compiled into the
+application.
+
+Wi-Fi credentials
+******************
+
+Credentials are Kconfig values but should not be committed. Copy the provided
+example and edit the ignored local file:
+
+.. code-block:: console
+
+   cp wifi.conf.example wifi.conf
+
+Set ``CONFIG_AUDIO_MODEM_WIFI_SSID`` and ``CONFIG_AUDIO_MODEM_WIFI_PSK`` in
+``wifi.conf``. An empty PSK selects an open network. If the SSID remains empty,
+the firmware continues sending silence over UART but does not connect.
 
 Building and Running
 ********************
@@ -125,7 +193,7 @@ Building and Running
 .. code-block:: console
 
    west blobs fetch hal_espressif
-   west build -b esp32c6_devkitc/esp32c6/hpcore .
+   west build -b esp32c6_devkitc/esp32c6/hpcore . -- -DEXTRA_CONF_FILE=wifi.conf
    west flash
    west espressif monitor
 
@@ -147,50 +215,30 @@ If the ESP32-C6 remains in download mode after flashing over USB Serial/JTAG:
    west flash --runner esp32
    west flash --reset-type watchdog-reset
 
-Later WiFi/UDP Architecture
-***************************
+Wi-Fi/UDP architecture
+**********************
 
-The second milestone should add a separate UDP-backed audio source while keeping
-the UART frame transmitter unchanged:
+Network reception and UART playback run as separate producer and consumer
+paths:
 
 .. code-block:: text
 
-   WiFi STA connection
+   Wi-Fi STA connection
      -> UDP receive thread
      -> PCM packet parser / sample converter
      -> jitter buffer
      -> UART audio transmitter
 
-Recommended source modules:
-
-.. code-block:: text
-
-   src/features/wifi_station/
-   src/features/udp_audio/
-   src/features/jitter_buffer/
-
-WiFi station configuration should use Kconfig settings for SSID/PSK rather than
-hard-coded credentials. A later ``prj.conf`` will need Zephyr networking, IPv4,
-sockets, WiFi management, and Espressif WiFi support enabled.
-
-For signed 16-bit PCM input, convert to the MSP format with:
-
-.. code-block:: c
-
-   sample12 = CLAMP((pcm16 + 32768) >> 4, 0, 4095);
-
-On jitter-buffer underrun, output midpoint samples with value ``2048``.
-
-ESP32-C6 WiFi Notes
-*******************
+ESP32-C6 Wi-Fi Notes
+********************
 
 Zephyr's ESP32-C6 DevKitC board target is
 ``esp32c6_devkitc/esp32c6/hpcore``. Espressif RF binary blobs are required for
-WiFi operation:
+Wi-Fi operation:
 
 .. code-block:: console
 
    west blobs fetch hal_espressif
 
-Run that after ``west update``. WiFi support depends on Zephyr's Espressif HAL
+Run that after ``west update``. Wi-Fi support depends on Zephyr's Espressif HAL
 module and the board/SoC support present in the Zephyr version in use.
