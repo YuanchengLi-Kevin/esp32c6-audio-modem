@@ -166,8 +166,7 @@ provided configuration fragment:
 
 .. code-block:: console
 
-   west build -b esp32c6_devkitc/esp32c6/hpcore . -- \
-     -DEXTRA_CONF_FILE=sine.conf
+   west build -p always -b esp32c6_devkitc/esp32c6/hpcore . -- '-DEXTRA_CONF_FILE=sine.conf'
 
 ``CONFIG_AUDIO_MODEM_SOURCE_UDP`` and ``CONFIG_AUDIO_MODEM_SOURCE_SINE`` form a
 Kconfig choice, so only the selected source modules are compiled into the
@@ -193,7 +192,7 @@ Building and Running
 .. code-block:: console
 
    west blobs fetch hal_espressif
-   west build -b esp32c6_devkitc/esp32c6/hpcore . -- -DEXTRA_CONF_FILE=wifi.conf
+   west build -b esp32c6_devkitc/esp32c6/hpcore . -- '-DEXTRA_CONF_FILE=wifi.conf'
    west flash
    west espressif monitor
 
@@ -213,7 +212,6 @@ If the ESP32-C6 remains in download mode after flashing over USB Serial/JTAG:
 .. code-block:: console
 
    west flash --runner esp32
-   west flash --reset-type watchdog-reset
 
 Wi-Fi/UDP architecture
 **********************

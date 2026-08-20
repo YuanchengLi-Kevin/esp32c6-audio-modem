@@ -42,6 +42,7 @@ int main(void)
 #endif
 	uint16_t samples[FRAME_SAMPLES];
 	uint64_t stream_start_us;
+	int64_t next_status_ms;
 	uint64_t sample_cursor = 0U;
 	int ret;
 
@@ -84,6 +85,7 @@ int main(void)
 		   SAMPLE_RATE_HZ, FRAME_SAMPLES);
 
 	stream_start_us = k_ticks_to_us_floor64(k_uptime_ticks());
+	next_status_ms = k_uptime_get() + 1000;
 
 	while (true)
 	{
@@ -96,6 +98,13 @@ int main(void)
 		if (ret != 0)
 		{
 			printk("Audio UART transmission failed: %d\n", ret);
+		}
+
+		if (k_uptime_get() >= next_status_ms)
+		{
+			printk("Audio UART TX completed: %u frames\n",
+			       uart_audio_completed_frames(&stream));
+			next_status_ms += 1000;
 		}
 
 		sample_cursor += FRAME_SAMPLES;

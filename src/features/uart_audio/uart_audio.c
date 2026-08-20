@@ -25,7 +25,10 @@ static void uart_audio_callback(const struct device *uart,
 
 	ARG_UNUSED(uart);
 
-	if ((event->type == UART_TX_DONE) || (event->type == UART_TX_ABORTED)) {
+	if (event->type == UART_TX_DONE) {
+		atomic_inc(&stream->completed_frames);
+		k_sem_give(&stream->tx_available);
+	} else if (event->type == UART_TX_ABORTED) {
 		k_sem_give(&stream->tx_available);
 	}
 }
@@ -38,6 +41,7 @@ int uart_audio_stream_init(struct uart_audio_stream *stream, const struct device
 
 	stream->uart = uart;
 	stream->sequence = 0U;
+	atomic_set(&stream->completed_frames, 0);
 	k_sem_init(&stream->tx_available, 1U, 1U);
 
 	return uart_callback_set(uart, uart_audio_callback, stream);
@@ -83,4 +87,9 @@ int uart_audio_send_frame(struct uart_audio_stream *stream,
 
 	stream->sequence++;
 	return 0;
+}
+
+uint32_t uart_audio_completed_frames(const struct uart_audio_stream *stream)
+{
+	return (uint32_t)atomic_get(&stream->completed_frames);
 }
