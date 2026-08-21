@@ -26,7 +26,7 @@
 #error "No enabled zephyr,audio-uart chosen node. Check the board devicetree overlay."
 #endif
 
-#define SAMPLE_RATE_HZ 42000U
+#define SAMPLE_RATE_HZ 10000U
 #define FRAME_SAMPLES 128U
 
 #if defined(CONFIG_AUDIO_MODEM_SOURCE_UDP)
@@ -64,19 +64,22 @@ int main(void)
 #else
 	jitter_buffer_init(&jitter_buffer);
 	ret = wifi_station_init();
-	if (ret != 0) {
+	if (ret != 0)
+	{
 		printk("Wi-Fi station initialization failed: %d\n", ret);
 		return 0;
 	}
 
 	ret = udp_audio_start(&jitter_buffer);
-	if (ret != 0) {
+	if (ret != 0)
+	{
 		printk("UDP audio initialization failed: %d\n", ret);
 		return 0;
 	}
 
 	ret = wifi_station_connect();
-	if (ret != 0) {
+	if (ret != 0)
+	{
 		printk("Wi-Fi connection request failed: %d\n", ret);
 	}
 #endif
@@ -103,7 +106,7 @@ int main(void)
 		if (k_uptime_get() >= next_status_ms)
 		{
 			printk("Audio UART TX completed: %u frames\n",
-			       uart_audio_completed_frames(&stream));
+				   uart_audio_completed_frames(&stream));
 			next_status_ms += 1000;
 		}
 

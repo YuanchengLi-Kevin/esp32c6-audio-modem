@@ -12,6 +12,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_event.h>
 #include <zephyr/net/net_if.h>
+#include <zephyr/net/net_ip.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi_mgmt.h>
 
@@ -24,47 +25,66 @@ static struct net_mgmt_event_callback ipv4_callback;
 static struct net_if *station_iface;
 
 static void wifi_event_handler(struct net_mgmt_event_callback *callback,
-			       uint64_t event, struct net_if *iface)
+							   uint64_t event, struct net_if *iface)
 {
 	const struct wifi_status *status = callback->info;
 
-	if (iface != station_iface) {
+	if (iface != station_iface)
+	{
 		return;
 	}
 
-	if (event == NET_EVENT_WIFI_CONNECT_RESULT) {
-		if ((status != NULL) && (status->status != 0)) {
+	if (event == NET_EVENT_WIFI_CONNECT_RESULT)
+	{
+		if ((status != NULL) && (status->status != 0))
+		{
 			LOG_ERR("Wi-Fi connection failed: %d", status->status);
-		} else {
+		}
+		else
+		{
 			LOG_INF("Wi-Fi associated; waiting for IPv4 address");
 		}
-	} else if (event == NET_EVENT_WIFI_DISCONNECT_RESULT) {
+	}
+	else if (event == NET_EVENT_WIFI_DISCONNECT_RESULT)
+	{
 		LOG_WRN("Wi-Fi disconnected; driver reconnect is enabled");
 	}
 }
 
 static void ipv4_event_handler(struct net_mgmt_event_callback *callback,
-			       uint64_t event, struct net_if *iface)
+							   uint64_t event, struct net_if *iface)
 {
-	ARG_UNUSED(callback);
+	char address[NET_IPV4_ADDR_LEN];
+	const struct net_in_addr *ipv4_address = callback->info;
+
 	ARG_UNUSED(event);
 
-	if (iface == station_iface) {
-		LOG_INF("Wi-Fi station has an IPv4 address");
+	if (iface == station_iface)
+	{
+		if ((ipv4_address != NULL) &&
+			(net_addr_ntop(AF_INET, ipv4_address, address, sizeof(address)) != NULL))
+		{
+			LOG_INF("Wi-Fi station IPv4 address: %s", address);
+		}
+		else
+		{
+			LOG_INF("Wi-Fi station has an IPv4 address");
+		}
 	}
 }
 
 int wifi_station_init(void)
 {
 	station_iface = net_if_get_wifi_sta();
-	if (station_iface == NULL) {
+	if (station_iface == NULL)
+	{
 		return -ENODEV;
 	}
 
 	net_mgmt_init_event_callback(&wifi_callback, wifi_event_handler, WIFI_EVENTS);
 	net_mgmt_add_event_callback(&wifi_callback);
 	net_mgmt_init_event_callback(&ipv4_callback, ipv4_event_handler,
-				     NET_EVENT_IPV4_ADDR_ADD);
+								 NET_EVENT_IPV4_ADDR_ADD);
 	net_mgmt_add_event_callback(&ipv4_callback);
 
 	return 0;
@@ -77,7 +97,8 @@ int wifi_station_connect(void)
 	size_t psk_length = strlen(CONFIG_AUDIO_MODEM_WIFI_PSK);
 
 	if ((station_iface == NULL) || (ssid_length == 0U) || (ssid_length > 32U) ||
-	    ((psk_length != 0U) && ((psk_length < 8U) || (psk_length > 64U)))) {
+		((psk_length != 0U) && ((psk_length < 8U) || (psk_length > 64U))))
+	{
 		return -EINVAL;
 	}
 

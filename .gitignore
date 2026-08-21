@@ -8,6 +8,7 @@ twister-out*/
 .west/
 
 # Python generated files
+.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/

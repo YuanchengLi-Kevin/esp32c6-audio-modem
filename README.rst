@@ -77,13 +77,13 @@ naturally from 255 to 0. A normal frame is 260 bytes and takes approximately
 
 Sample format:
 
-* 42,000 samples/sec
+* 10,000 samples/sec
 * Unsigned 12-bit sample carried in ``uint16_t``
 * Practical range: 0..4095
 * Silence/midpoint: 2048
 * Maximum frame size: 128 samples
 
-Each 128-sample UART frame represents approximately 3.048 ms of audio. The
+Each 128-sample UART frame represents approximately 12.8 ms of audio. The
 stream outputs midpoint samples while the jitter buffer is starting or empty.
 
 UDP audio protocol
@@ -178,18 +178,18 @@ Wi-Fi credentials
 Credentials are Kconfig values but should not be committed. Copy the provided
 example and edit the ignored local file:
 
-.. code-block:: console
+.. code-block:: powershell
 
-   cp wifi.conf.example wifi.conf
+   Copy-Item wifi.conf.example wifi.conf
 
 Set ``CONFIG_AUDIO_MODEM_WIFI_SSID`` and ``CONFIG_AUDIO_MODEM_WIFI_PSK`` in
 ``wifi.conf``. An empty PSK selects an open network. If the SSID remains empty,
 the firmware continues sending silence over UART but does not connect.
 
-Building and Running
+Building and running
 ********************
 
-.. code-block:: console
+.. code-block:: powershell
 
    west blobs fetch hal_espressif
    west build -b esp32c6_devkitc/esp32c6/hpcore . -- '-DEXTRA_CONF_FILE=wifi.conf'
@@ -198,7 +198,51 @@ Building and Running
 
 Open the native USB Serial/JTAG monitor before resetting the ESP32-C6 if the
 single startup message is required. The audio stream begins immediately after
-initialization and continues without a handshake from the MSPM0.
+initialization and continues without a handshake from the MSPM0. After DHCP
+completes, the monitor prints ``Wi-Fi station IPv4 address: <address>``. Use
+that address with the host streaming tool.
+
+Streaming audio from Windows
+****************************
+
+The host and ESP32-C6 must be on the same LAN. The ESP32-C6 connects only to a
+2.4 GHz access point, although the Windows host may use another band on the
+same LAN.
+
+Install the WASAPI loopback package:
+
+.. code-block:: powershell
+
+   python -m pip install -r tools\requirements.txt
+   ffmpeg -version
+
+FFmpeg must be installed and available on ``PATH``. It decodes files and
+converts both file and live input to the modem's signed 16-bit, 10 kHz mono PCM
+format.
+
+To play a local MP3 or another FFmpeg-supported audio file:
+
+.. code-block:: powershell
+
+   python tools\stream_udp_audio.py --host <ESP_IP> --file song.mp3
+
+To stream YouTube, browser audio, or any other Windows playback:
+
+.. code-block:: powershell
+
+   python tools\stream_udp_audio.py --host <ESP_IP> --system-audio
+
+``--system-audio`` captures the current default Windows playback device through
+WASAPI loopback. Set the browser to that device before starting the command.
+Audio remains audible on the PC while it is copied to the modem. The sender
+continues through silence and can be stopped with Ctrl+C. It captures the mixed
+system output; it does not download or resolve YouTube URLs.
+
+If no audio reaches the ESP32-C6, verify that ``<ESP_IP>`` matches the monitor,
+the UDP port matches ``CONFIG_AUDIO_MODEM_UDP_PORT`` (default ``4242``), and
+Windows and the board are on the same LAN. Disable wireless client/AP isolation
+or use a trusted LAN that permits peer-to-peer UDP traffic. A host firewall must
+also allow Python to send UDP packets on the private network.
 
 For a predictable startup sequence:
 
@@ -209,7 +253,7 @@ For a predictable startup sequence:
 
 If the ESP32-C6 remains in download mode after flashing over USB Serial/JTAG:
 
-.. code-block:: console
+.. code-block:: powershell
 
    west flash --runner esp32
 
@@ -234,7 +278,7 @@ Zephyr's ESP32-C6 DevKitC board target is
 ``esp32c6_devkitc/esp32c6/hpcore``. Espressif RF binary blobs are required for
 Wi-Fi operation:
 
-.. code-block:: console
+.. code-block:: powershell
 
    west blobs fetch hal_espressif
 

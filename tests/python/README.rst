@@ -16,7 +16,10 @@ Run the protocol decoder tests without hardware:
 
    python -m pytest tests/python -m "not hardware"
 
-The host tests cover both UART frame decoding and UDP audio packet encoding.
+The host tests cover UART frame decoding, UDP audio packet encoding, sender
+argument validation, packet pacing, sequence rollover, partial-frame padding,
+and live-capture cleanup. PyAudioWPatch is imported only by the Windows live
+path, so it is not required to run the host tests on Linux.
 
 To include hardware tests, connect a 3.3 V USB-to-UART adapter RX input to
 ESP32-C6 GPIO4, connect ground, and select its serial port:
