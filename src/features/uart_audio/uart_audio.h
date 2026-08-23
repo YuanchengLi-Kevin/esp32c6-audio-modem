@@ -11,7 +11,6 @@
 #include <stdint.h>
 
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 
 #define UART_AUDIO_MAX_SAMPLES 128U
@@ -23,7 +22,6 @@
 
 struct uart_audio_stream {
 	const struct device *uart;
-	struct k_sem tx_available;
 	uint8_t frame[UART_AUDIO_MAX_FRAME_SIZE];
 	uint8_t sequence;
 	atomic_t completed_frames;

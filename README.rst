@@ -118,12 +118,12 @@ The jitter buffer accepts limited packet reordering. It begins playback after
 ``CONFIG_AUDIO_MODEM_JITTER_BUFFER_START_PACKETS`` packets and substitutes
 midpoint value ``2048`` for unavailable audio.
 
-DMA transmission
-================
+UART transmission
+=================
 
 ``src/features/uart_audio`` serializes each frame into one reusable 262-byte
-buffer and submits it through Zephyr's asynchronous UART DMA API. The buffer is
-not modified until ``UART_TX_DONE`` or ``UART_TX_ABORTED`` releases it. UART1 is
+buffer and writes it through Zephyr's polling UART API. At 250 kbaud, a normal
+frame occupies approximately 10.48 ms of its 25.6 ms audio period. UART1 is
 dedicated to binary audio, so console text is never written to GPIO4.
 
 Project layout
