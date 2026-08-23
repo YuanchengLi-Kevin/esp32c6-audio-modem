@@ -40,7 +40,7 @@
 
 &uart1 {
 	status = "okay";
-	current-speed = <1000000>;
+	current-speed = <250000>;
 	pinctrl-0 = <&uart1_audio_default>;
 	pinctrl-names = "default";
 	dmas = <&dma 0>, <&dma 1>;

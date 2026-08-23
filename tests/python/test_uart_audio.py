@@ -5,12 +5,13 @@ from io import BytesIO
 
 import pytest
 
-from uart_audio import AudioFrameReader
+from uart_audio import AudioFrameReader, crc16_ccitt
 
 
 def encode_frame(sequence: int, samples: list[int]) -> bytes:
     payload = b"".join(sample.to_bytes(2, "little") for sample in samples)
-    return b"\xA5\x5A" + bytes((sequence, len(samples))) + payload
+    protected = bytes((sequence, len(samples))) + payload
+    return b"\xA5\x5A" + protected + crc16_ccitt(protected).to_bytes(2, "little")
 
 
 def test_decodes_frame_and_little_endian_samples() -> None:
@@ -56,4 +57,13 @@ def test_reports_truncated_payload() -> None:
     reader = AudioFrameReader(BytesIO(b"\xA5\x5A\x00\x02\x00\x08"))
 
     with pytest.raises(TimeoutError, match="2 of 4 required bytes"):
+        reader.read_frame()
+
+
+def test_rejects_crc_mismatch() -> None:
+    frame = bytearray(encode_frame(7, [0x0123, 0x0ABC]))
+    frame[4] ^= 0x01
+    reader = AudioFrameReader(BytesIO(frame))
+
+    with pytest.raises(ValueError, match="CRC mismatch"):
         reader.read_frame()

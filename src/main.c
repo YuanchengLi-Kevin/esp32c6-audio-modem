@@ -26,7 +26,7 @@
 #error "No enabled zephyr,audio-uart chosen node. Check the board devicetree overlay."
 #endif
 
-#define SAMPLE_RATE_HZ 10000U
+#define SAMPLE_RATE_HZ 5000U
 #define FRAME_SAMPLES 128U
 
 #if defined(CONFIG_AUDIO_MODEM_SOURCE_UDP)
@@ -84,8 +84,9 @@ int main(void)
 	}
 #endif
 
-	printk("ESP32-C6 UART audio streamer: %u Hz, %u samples/frame, 1000000 baud\n",
-		   SAMPLE_RATE_HZ, FRAME_SAMPLES);
+	printk("ESP32-C6 UART audio streamer: %u Hz, %u samples/frame, %u baud\n",
+		   SAMPLE_RATE_HZ, FRAME_SAMPLES,
+		   DT_PROP(AUDIO_UART_NODE, current_speed));
 
 	stream_start_us = k_ticks_to_us_floor64(k_uptime_ticks());
 	next_status_ms = k_uptime_get() + 1000;

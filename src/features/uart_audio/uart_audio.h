@@ -16,8 +16,10 @@
 
 #define UART_AUDIO_MAX_SAMPLES 128U
 #define UART_AUDIO_FRAME_HEADER_SIZE 4U
+#define UART_AUDIO_FRAME_CRC_SIZE 2U
 #define UART_AUDIO_MAX_FRAME_SIZE \
-	(UART_AUDIO_FRAME_HEADER_SIZE + (UART_AUDIO_MAX_SAMPLES * sizeof(uint16_t)))
+	(UART_AUDIO_FRAME_HEADER_SIZE + (UART_AUDIO_MAX_SAMPLES * sizeof(uint16_t)) + \
+	 UART_AUDIO_FRAME_CRC_SIZE)
 
 struct uart_audio_stream {
 	const struct device *uart;

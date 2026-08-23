@@ -9,8 +9,9 @@ from uart_audio import AudioFrameReader
 
 serial = pytest.importorskip("serial")
 
-SAMPLE_RATE_HZ = 42_000
+SAMPLE_RATE_HZ = 5_000
 SAMPLE_MIDPOINT = 2048
+
 
 @pytest.fixture(scope="module")
 def frame_reader():
@@ -18,7 +19,7 @@ def frame_reader():
     if not port:
         pytest.skip("set AUDIO_UART_PORT to run tests against hardware")
 
-    with serial.Serial(port, 1_000_000, timeout=2) as stream:
+    with serial.Serial(port, 250_000, timeout=2) as stream:
         stream.reset_input_buffer()
         yield AudioFrameReader(stream)
 

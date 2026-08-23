@@ -30,7 +30,7 @@ ESP32-C6 GPIO4, connect ground, and select its serial port:
    python -m pytest tests/python
 
 The hardware tests expect the board to already run firmware that emits the
-documented 42 kHz, 128-sample UART stream at 1,000,000 baud. They do not build
+documented 5 kHz, 128-sample UART stream at 250,000 baud. They do not build
 or flash firmware.
 
 To run the sine-wave assertions against firmware built with ``sine.conf``:

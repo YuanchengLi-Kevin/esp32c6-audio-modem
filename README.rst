@@ -19,7 +19,7 @@ UART interfaces
 
 The application uses two independent interfaces:
 
-* ``UART1`` carries only framed audio to the MSPM0 at 1,000,000 baud. Its TX
+* ``UART1`` carries only framed audio to the MSPM0 at 250,000 baud. Its TX
   signal is routed to ESP32-C6 GPIO4.
 * ``usb_serial`` is the Zephyr console used by ``printk()``. It appears as the
   ESP32-C6 native USB Serial/JTAG COM port and is not connected to the audio
@@ -49,13 +49,13 @@ UART audio configuration
 
 The dedicated audio UART uses:
 
-* 1,000,000 baud
+* 250,000 baud
 * 8 data bits
 * No parity
 * 1 stop bit
 * No hardware flow control
 
-Frame format:
+For a frame containing ``N`` samples, where ``N`` is between one and 128:
 
 .. code-block:: text
 
@@ -63,27 +63,29 @@ Frame format:
    byte 1: 0x5A
    byte 2: sequence number, uint8_t
    byte 3: sample count, uint8_t, 1..128
-   bytes 4+: PCM samples, little-endian uint16_t
+   bytes 4..(3 + 2N): PCM samples, little-endian uint16_t
+   next 2 bytes:       CRC-16/CCITT-FALSE, little-endian uint16_t
 
 Normal frames always contain 128 samples and therefore appear as:
 
 .. code-block:: text
 
-   A5 5A <sequence> 80 <256 sample bytes>
+   A5 5A <sequence> 80 <256 sample bytes> <2 CRC bytes>
 
 The sequence byte increments for each accepted DMA transmission and wraps
-naturally from 255 to 0. A normal frame is 260 bytes and takes approximately
-2.60 ms to transmit at 1 Mbaud.
+naturally from 255 to 0. The CRC covers the sequence, sample count, and sample
+bytes using polynomial ``0x1021`` and initial value ``0xFFFF``. A normal frame
+is 262 bytes and takes approximately 10.48 ms to transmit at 250 kbaud.
 
 Sample format:
 
-* 10,000 samples/sec
+* 5,000 samples/sec
 * Unsigned 12-bit sample carried in ``uint16_t``
 * Practical range: 0..4095
 * Silence/midpoint: 2048
 * Maximum frame size: 128 samples
 
-Each 128-sample UART frame represents approximately 12.8 ms of audio. The
+Each 128-sample UART frame represents approximately 25.6 ms of audio. The
 stream outputs midpoint samples while the jitter buffer is starting or empty.
 
 UDP audio protocol
@@ -119,7 +121,7 @@ midpoint value ``2048`` for unavailable audio.
 DMA transmission
 ================
 
-``src/features/uart_audio`` serializes each frame into one reusable 260-byte
+``src/features/uart_audio`` serializes each frame into one reusable 262-byte
 buffer and submits it through Zephyr's asynchronous UART DMA API. The buffer is
 not modified until ``UART_TX_DONE`` or ``UART_TX_ABORTED`` releases it. UART1 is
 dedicated to binary audio, so console text is never written to GPIO4.
