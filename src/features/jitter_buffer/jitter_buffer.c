@@ -55,11 +55,14 @@ int jitter_buffer_push(struct jitter_buffer *buffer, uint16_t sequence,
 
 	distance = sequence - buffer->next_sequence;
 	if (distance >= CONFIG_AUDIO_MODEM_JITTER_BUFFER_PACKETS) {
-		if (buffer->packet_count != 0U) {
+		if (buffer->started && (buffer->packet_count != 0U)) {
 			ret = -ENOBUFS;
 			goto unlock;
 		}
 
+		/* Discard stranded packets so an incomplete refill can recover. */
+		memset(buffer->packets, 0, sizeof(buffer->packets));
+		buffer->packet_count = 0U;
 		buffer->next_sequence = sequence;
 		buffer->started = false;
 	}

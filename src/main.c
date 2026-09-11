@@ -103,13 +103,14 @@ int main(void)
 		{
 			printk("Audio UART transmission failed: %d\n", ret);
 		}
-
+		/*
 		if (k_uptime_get() >= next_status_ms)
 		{
 			printk("Audio UART TX completed: %u frames\n",
 				   uart_audio_completed_frames(&stream));
 			next_status_ms += 1000;
 		}
+		*/
 
 		sample_cursor += FRAME_SAMPLES;
 
